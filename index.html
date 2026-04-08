@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ゴルフ幹事アプリ</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; background: #f0f4f0; color: #333; min-height: 100vh; }
+.container { max-width: 720px; margin: 0 auto; padding: 16px; }
+h1 { text-align: center; color: #2e7d32; margin: 16px 0; font-size: 1.5rem; }
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+.tab-btn { flex: 1; padding: 10px; border: none; background: #c8e6c9; color: #2e7d32; font-size: 0.95rem; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0; transition: background 0.2s; }
+.tab-btn.active { background: #2e7d32; color: #fff; }
+.tab-panel { display: none; background: #fff; border-radius: 0 0 12px 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.tab-panel.active { display: block; }
+
+/* 参加者タブ */
+.input-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.input-row input { flex: 1; padding: 10px 14px; border: 2px solid #c8e6c9; border-radius: 8px; font-size: 1rem; outline: none; }
+.input-row input:focus { border-color: #2e7d32; }
+.btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s; }
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: #2e7d32; color: #fff; }
+.btn-primary:hover { background: #1b5e20; }
+.btn-danger { background: #e53935; color: #fff; font-size: 0.8rem; padding: 5px 12px; }
+.btn-danger:hover { background: #c62828; }
+.btn-secondary { background: #66bb6a; color: #fff; }
+.btn-secondary:hover { background: #43a047; }
+.count-badge { background: #e8f5e9; color: #2e7d32; padding: 6px 14px; border-radius: 20px; font-weight: 600; display: inline-block; margin-bottom: 12px; }
+.player-list { list-style: none; }
+.player-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }
+.player-item:last-child { border-bottom: none; }
+.player-num { color: #999; margin-right: 10px; font-size: 0.85rem; min-width: 24px; }
+.empty-msg { text-align: center; color: #aaa; padding: 30px; }
+
+/* 組分けタブ */
+.group-actions { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.group-card { background: #f9fbe7; border: 2px solid #c5e1a5; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+.group-title { font-weight: 700; color: #33691e; margin-bottom: 8px; font-size: 1.05rem; }
+.group-player { padding: 8px 12px; background: #fff; border-radius: 6px; margin-bottom: 4px; cursor: grab; border: 1px solid #e0e0e0; transition: background 0.15s; display: flex; align-items: center; gap: 8px; }
+.group-player:hover { background: #f1f8e9; }
+.group-player.dragging { opacity: 0.4; }
+.group-player.drag-over { border-color: #2e7d32; background: #e8f5e9; }
+
+/* PDF出力タブ */
+.form-section { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #eee; }
+.form-section:last-of-type { border-bottom: none; }
+.form-section-title { font-weight: 700; color: #2e7d32; margin-bottom: 10px; font-size: 0.95rem; }
+.form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+.form-group { margin-bottom: 10px; flex: 1; }
+.form-group label { display: block; font-weight: 600; margin-bottom: 3px; color: #555; font-size: 0.85rem; }
+.form-group input, .form-group textarea { width: 100%; padding: 8px 12px; border: 2px solid #c8e6c9; border-radius: 8px; font-size: 0.95rem; outline: none; font-family: inherit; }
+.form-group input:focus, .form-group textarea:focus { border-color: #2e7d32; }
+.form-group textarea { resize: vertical; min-height: 40px; }
+.pdf-preview { border: 2px solid #e0e0e0; border-radius: 10px; padding: 20px; margin: 16px 0; background: #fafafa; font-size: 0.9rem; line-height: 1.6; }
+.pdf-preview .pv-right { text-align: right; color: #555; margin-bottom: 12px; white-space: pre-line; }
+.pdf-preview .pv-title { text-align: center; font-weight: 700; font-size: 1.1rem; text-decoration: underline; margin-bottom: 6px; }
+.pdf-preview .pv-ki { text-align: center; margin-bottom: 10px; }
+.pdf-preview .pv-detail { margin-bottom: 4px; padding-left: 1em; }
+.pdf-preview .pv-detail-label { display: inline-block; min-width: 5em; font-weight: 600; }
+.pdf-preview .pv-table-title { font-weight: 600; margin: 16px 0 8px; }
+.pv-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+.pv-table td { border: 1px solid #999; padding: 6px 10px; }
+.pv-table .grp-num { width: 40px; text-align: center; font-weight: 600; }
+.pv-contact { color: #555; font-size: 0.85rem; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>&#9971; ゴルフ幹事アプリ</h1>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="players">参加者</button>
+    <button class="tab-btn" data-tab="groups">組分け</button>
+    <button class="tab-btn" data-tab="pdf">PDF出力</button>
+  </div>
+
+  <!-- 参加者タブ -->
+  <div id="tab-players" class="tab-panel active">
+    <div class="input-row">
+      <input type="text" id="playerName" placeholder="参加者の名前を入力">
+      <button class="btn btn-primary" id="addBtn">追加</button>
+    </div>
+    <div class="count-badge" id="playerCount">参加者: 0人</div>
+    <ul class="player-list" id="playerList"></ul>
+    <div class="empty-msg" id="emptyMsg">参加者を追加してください</div>
+  </div>
+
+  <!-- 組分けタブ -->
+  <div id="tab-groups" class="tab-panel">
+    <div class="group-actions">
+      <button class="btn btn-primary" id="autoGroupBtn">自動組分け</button>
+      <button class="btn btn-secondary" id="shuffleBtn">シャッフル</button>
+    </div>
+    <div id="groupsContainer"></div>
+  </div>
+
+  <!-- PDF出力タブ -->
+  <div id="tab-pdf" class="tab-panel">
+    <div class="form-section">
+      <div class="form-section-title">基本情報</div>
+      <div class="form-group">
+        <label>大会名</label>
+        <input type="text" id="eventName" placeholder="例: 多摩経営者倫理法人会ゴルフコンペ">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>主催団体</label>
+          <input type="text" id="orgName" placeholder="例: 八王子市倫理法人会">
+        </div>
+        <div class="form-group">
+          <label>幹事名</label>
+          <input type="text" id="directorName" placeholder="例: 坂本兼一">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">開催概要</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>開催日</label>
+          <input type="date" id="eventDate">
+        </div>
+        <div class="form-group">
+          <label>曜日・スタート時間</label>
+          <input type="text" id="startTime" placeholder="例: 西9:14スタート">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>場所（ゴルフ場名）</label>
+        <input type="text" id="courseName" placeholder="例: GMG八王子ゴルフ場">
+      </div>
+      <div class="form-group">
+        <label>住所</label>
+        <input type="text" id="courseAddr" placeholder="例: 東京都八王子市川口町３５１５">
+      </div>
+      <div class="form-group">
+        <label>TEL</label>
+        <input type="text" id="courseTel" placeholder="例: 042-654-4311">
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">詳細</div>
+      <div class="form-group">
+        <label>参加費</label>
+        <input type="text" id="fee" placeholder="例: ３，０００円（賞品代・パーティ代として）当日徴収">
+      </div>
+      <div class="form-group">
+        <label>競技方法</label>
+        <input type="text" id="gameRule" placeholder="例: １８ホールストロークプレイ 新ペリア方式 HC(上限30)個人戦">
+      </div>
+      <div class="form-group">
+        <label>パーティ会場</label>
+        <input type="text" id="partyVenue" placeholder="例: クラブハウス">
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">連絡先</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>担当者名</label>
+          <input type="text" id="contactName" placeholder="例: 坂本兼一">
+        </div>
+        <div class="form-group">
+          <label>電話番号</label>
+          <input type="text" id="contactTel" placeholder="例: 090-1234-5678">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>メールアドレス</label>
+        <input type="text" id="contactEmail" placeholder="例: example@email.com">
+      </div>
+    </div>
+
+    <div class="pdf-preview" id="pdfPreview">
+      <p class="empty-msg">組分けを行うとプレビューが表示されます</p>
+    </div>
+    <button class="btn btn-primary" id="downloadPdfBtn" style="width:100%; margin-top: 8px;">PDFダウンロード</button>
+  </div>
+</div>
+
+<script>
+const LS_PLAYERS = 'golf_players';
+const LS_GROUPS = 'golf_groups';
+const LS_EVENT = 'golf_event2';
+
+const EVENT_FIELDS = ['eventName','orgName','directorName','eventDate','startTime','courseName','courseAddr','courseTel','fee','gameRule','partyVenue','contactName','contactTel','contactEmail'];
+
+let players = JSON.parse(localStorage.getItem(LS_PLAYERS) || '[]');
+let groups = JSON.parse(localStorage.getItem(LS_GROUPS) || '[]');
+
+function savePlayers() { localStorage.setItem(LS_PLAYERS, JSON.stringify(players)); }
+function saveGroups() { localStorage.setItem(LS_GROUPS, JSON.stringify(groups)); }
+function saveEvent() {
+  const data = {};
+  EVENT_FIELDS.forEach(id => { data[id] = document.getElementById(id).value; });
+  localStorage.setItem(LS_EVENT, JSON.stringify(data));
+}
+function getVal(id) { return document.getElementById(id).value; }
+
+// --- タブ切り替え ---
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'groups') renderGroups();
+    if (btn.dataset.tab === 'pdf') renderPreview();
+  });
+});
+
+// --- 参加者管理 ---
+const playerNameInput = document.getElementById('playerName');
+const addBtn = document.getElementById('addBtn');
+
+function addPlayer() {
+  const name = playerNameInput.value.trim();
+  if (!name) return;
+  if (players.includes(name)) { alert('同じ名前の参加者が既にいます'); return; }
+  players.push(name);
+  savePlayers();
+  playerNameInput.value = '';
+  playerNameInput.focus();
+  renderPlayers();
+}
+
+addBtn.addEventListener('click', addPlayer);
+playerNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') addPlayer(); });
+
+function removePlayer(index) {
+  players.splice(index, 1);
+  savePlayers();
+  renderPlayers();
+}
+
+function renderPlayers() {
+  const list = document.getElementById('playerList');
+  const empty = document.getElementById('emptyMsg');
+  document.getElementById('playerCount').textContent = `参加者: ${players.length}人`;
+  if (players.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = players.map((p, i) =>
+    `<li class="player-item">
+      <span><span class="player-num">${i + 1}.</span>${escHtml(p)}</span>
+      <button class="btn btn-danger" onclick="removePlayer(${i})">削除</button>
+    </li>`
+  ).join('');
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// --- 組分け ---
+document.getElementById('autoGroupBtn').addEventListener('click', () => { makeGroups(); });
+document.getElementById('shuffleBtn').addEventListener('click', () => { makeGroups(); });
+
+function makeGroups() {
+  if (players.length === 0) { alert('参加者を先に追加してください'); return; }
+  const shuffled = [...players].sort(() => Math.random() - 0.5);
+  groups = [];
+  for (let i = 0; i < shuffled.length; i += 4) {
+    groups.push(shuffled.slice(i, i + 4));
+  }
+  saveGroups();
+  renderGroups();
+}
+
+let dragFrom = null;
+
+function renderGroups() {
+  const container = document.getElementById('groupsContainer');
+  if (groups.length === 0) {
+    container.innerHTML = '<p class="empty-msg">「自動組分け」ボタンを押してください</p>';
+    return;
+  }
+  container.innerHTML = groups.map((g, gi) =>
+    `<div class="group-card">
+      <div class="group-title">第${gi + 1}組（${g.length}人）</div>
+      ${g.map((p, pi) =>
+        `<div class="group-player" draggable="true"
+              data-gi="${gi}" data-pi="${pi}">${escHtml(p)}</div>`
+      ).join('')}
+    </div>`
+  ).join('');
+
+  container.querySelectorAll('.group-player').forEach(el => {
+    el.addEventListener('dragstart', e => {
+      dragFrom = { gi: +el.dataset.gi, pi: +el.dataset.pi };
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    el.addEventListener('dragend', () => { el.classList.remove('dragging'); });
+    el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
+    el.addEventListener('dragleave', () => { el.classList.remove('drag-over'); });
+    el.addEventListener('drop', e => {
+      e.preventDefault();
+      el.classList.remove('drag-over');
+      if (!dragFrom) return;
+      const to = { gi: +el.dataset.gi, pi: +el.dataset.pi };
+      const tmp = groups[dragFrom.gi][dragFrom.pi];
+      groups[dragFrom.gi][dragFrom.pi] = groups[to.gi][to.pi];
+      groups[to.gi][to.pi] = tmp;
+      saveGroups();
+      renderGroups();
+    });
+  });
+}
+
+// --- PDF プレビュー & 出力 ---
+EVENT_FIELDS.forEach(id => {
+  document.getElementById(id).addEventListener('input', () => { saveEvent(); renderPreview(); });
+});
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  const wdays = ['日','月','火','水','木','金','土'];
+  return `令和${d.getFullYear() - 2018}年${d.getMonth()+1}月${d.getDate()}日（${wdays[d.getDay()]}曜日）`;
+}
+
+function renderPreview() {
+  const preview = document.getElementById('pdfPreview');
+  if (groups.length === 0) {
+    preview.innerHTML = '<p class="empty-msg">組分けを行うとプレビューが表示されます</p>';
+    return;
+  }
+  const eName = getVal('eventName') || '（大会名未入力）';
+  const dateDisp = formatDate(getVal('eventDate'));
+  const startTime = getVal('startTime');
+  const org = getVal('orgName');
+  const director = getVal('directorName');
+
+  let headerRight = '';
+  if (getVal('eventDate')) headerRight += formatDate(getVal('eventDate')).replace(/（.*/, '') + '\n';
+  if (org) headerRight += escHtml(org) + '\n';
+  if (director) headerRight += escHtml(director);
+
+  let details = '';
+  const dt = dateDisp ? dateDisp + (startTime ? ' ' + escHtml(startTime) : '') : '';
+  if (dt) details += `<div class="pv-detail"><span class="pv-detail-label">１．日時</span>${dt}</div>`;
+  const loc = getVal('courseName');
+  if (loc) {
+    details += `<div class="pv-detail"><span class="pv-detail-label">２．場所</span>${escHtml(loc)}</div>`;
+    if (getVal('courseAddr')) details += `<div class="pv-detail" style="padding-left:6em">${escHtml(getVal('courseAddr'))}</div>`;
+    if (getVal('courseTel')) details += `<div class="pv-detail" style="padding-left:6em">TEL ${escHtml(getVal('courseTel'))}</div>`;
+  }
+  if (getVal('fee')) details += `<div class="pv-detail"><span class="pv-detail-label">３．参加費</span>${escHtml(getVal('fee'))}</div>`;
+  if (getVal('gameRule')) details += `<div class="pv-detail"><span class="pv-detail-label">４．競技</span>${escHtml(getVal('gameRule'))}</div>`;
+  if (getVal('partyVenue')) details += `<div class="pv-detail"><span class="pv-detail-label">５．パーティ</span>${escHtml(getVal('partyVenue'))}</div>`;
+
+  let tableTitle = escHtml(eName) + ' 参加メンバー';
+
+  let tableRows = groups.map((g, i) =>
+    `<tr><td class="grp-num">${i+1}</td>${g.map(p => `<td>${escHtml(p)}</td>`).join('')}${g.length < 4 ? `<td colspan="${4 - g.length}"></td>` : ''}</tr>`
+  ).join('');
+
+  let contact = '';
+  if (getVal('contactName') || getVal('contactTel') || getVal('contactEmail')) {
+    const parts = [];
+    if (getVal('contactName')) parts.push(escHtml(getVal('contactName')));
+    if (getVal('contactTel')) parts.push(escHtml(getVal('contactTel')));
+    if (getVal('contactEmail')) parts.push(escHtml(getVal('contactEmail')));
+    contact = `<div class="pv-contact">連絡先：${parts.join('　')}</div>`;
+  }
+
+  preview.innerHTML = `
+    ${headerRight ? `<div class="pv-right">${headerRight}</div>` : ''}
+    <div class="pv-title">${escHtml(eName)}開催のお知らせ</div>
+    ${details ? details : ''}
+    <div class="pv-table-title">${tableTitle}</div>
+    <table class="pv-table">${tableRows}</table>
+    ${contact}
+  `;
+}
+
+// PDF ダウンロード
+document.getElementById('downloadPdfBtn').addEventListener('click', generatePdf);
+
+function generatePdf() {
+  if (groups.length === 0) { alert('先に組分けを行ってください'); return; }
+
+  const canvas = document.createElement('canvas');
+  const scale = 4;
+  const pageW = 210 * scale;
+  const pageH = 297 * scale;
+  canvas.width = pageW;
+  canvas.height = pageH;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, pageW, pageH);
+
+  const S = (mm) => mm * scale;
+  const fontBase = '"Meiryo", "Hiragino Sans", "Yu Gothic", sans-serif';
+  const setFont = (size, bold) => { ctx.font = (bold ? 'bold ' : '') + `${S(size)}px ${fontBase}`; };
+
+  const eName = getVal('eventName') || '組み合わせ表';
+  const dateDisp = formatDate(getVal('eventDate'));
+  const startTime = getVal('startTime');
+
+  let y = S(18);
+
+  // 右上ヘッダー
+  ctx.fillStyle = '#333';
+  ctx.textAlign = 'right';
+  setFont(3.2, false);
+  const rightX = pageW - S(20);
+  if (getVal('eventDate')) {
+    const dStr = formatDate(getVal('eventDate')).replace(/（.*/, '');
+    ctx.fillText(dStr, rightX, y); y += S(5);
+  }
+  if (getVal('orgName')) { ctx.fillText(getVal('orgName'), rightX, y); y += S(5); }
+  if (getVal('directorName')) { ctx.fillText(getVal('directorName'), rightX, y); y += S(5); }
+
+  y = Math.max(y, S(38));
+
+  // タイトル
+  ctx.fillStyle = '#1b5e20';
+  ctx.textAlign = 'center';
+  setFont(5.5, true);
+  const titleText = eName + '開催のお知らせ';
+  ctx.fillText(titleText, pageW / 2, y);
+  // 下線（緑の太線）
+  const tw = ctx.measureText(titleText).width;
+  ctx.beginPath();
+  ctx.moveTo(pageW / 2 - tw / 2, y + S(1.8));
+  ctx.lineTo(pageW / 2 + tw / 2, y + S(1.8));
+  ctx.strokeStyle = '#2e7d32';
+  ctx.lineWidth = S(0.6);
+  ctx.stroke();
+  y += S(12);
+
+  // 詳細項目
+  ctx.textAlign = 'left';
+  const detailX = S(25);
+  const detailValX = S(50);
+  setFont(3.5, false);
+  ctx.fillStyle = '#000';
+
+  const details = [];
+  if (dateDisp) {
+    let dtLine = dateDisp;
+    if (startTime) dtLine += ' ' + startTime;
+    details.push(['１．日時', dtLine]);
+  }
+  if (getVal('courseName')) {
+    details.push(['２．場所', getVal('courseName')]);
+    if (getVal('courseAddr')) details.push(['', getVal('courseAddr')]);
+    if (getVal('courseTel')) details.push(['', 'TEL ' + getVal('courseTel')]);
+  }
+  if (getVal('fee')) details.push(['３．参加費', getVal('fee')]);
+  if (getVal('gameRule')) details.push(['４．競技', getVal('gameRule')]);
+  if (getVal('partyVenue')) details.push(['５．パーティ', getVal('partyVenue')]);
+
+  details.forEach(([label, val]) => {
+    if (label) {
+      setFont(3.5, true);
+      ctx.fillText(label, detailX, y);
+    }
+    setFont(3.5, false);
+    ctx.fillText(val, detailValX, y);
+    y += S(6);
+  });
+
+  y += S(6);
+
+  // 参加メンバー表タイトル
+  setFont(3.8, true);
+  ctx.fillStyle = '#000';
+  const tableTitle = eName + ' 参加メンバー';
+  ctx.fillText(tableTitle, detailX, y);
+  y += S(6);
+
+  // テーブル描画
+  const tableX = S(20);
+  const numW = S(12);
+  const nameW = S(38);
+  const tableW = numW + nameW * 4;
+  const rowH = S(9);
+
+  ctx.lineWidth = S(0.3);
+
+  groups.forEach((g, gi) => {
+    // 行の背景（偶数行を薄緑に）
+    ctx.fillStyle = gi % 2 === 0 ? '#f1f8e9' : '#fff';
+    ctx.fillRect(tableX, y, tableW, rowH);
+
+    // セル罫線（緑系）
+    ctx.strokeStyle = '#81c784';
+    ctx.strokeRect(tableX, y, numW, rowH);
+    for (let c = 0; c < 4; c++) {
+      ctx.strokeRect(tableX + numW + nameW * c, y, nameW, rowH);
+    }
+
+    // 組番号
+    ctx.fillStyle = '#2e7d32';
+    setFont(3.5, true);
+    ctx.textAlign = 'center';
+    ctx.fillText(`${gi + 1}`, tableX + numW / 2, y + S(6.2));
+
+    // 名前
+    ctx.fillStyle = '#333';
+    setFont(3.5, false);
+    ctx.textAlign = 'left';
+    g.forEach((p, pi) => {
+      ctx.fillText(p, tableX + numW + nameW * pi + S(2), y + S(6.2));
+    });
+
+    y += rowH;
+  });
+
+  // 連絡先
+  y += S(6);
+  if (getVal('contactName') || getVal('contactTel') || getVal('contactEmail')) {
+    setFont(3.2, false);
+    ctx.fillStyle = '#333';
+    ctx.textAlign = 'left';
+    const parts = ['連絡先：'];
+    if (getVal('contactName')) parts.push(getVal('contactName'));
+    if (getVal('contactTel')) parts.push(getVal('contactTel'));
+    if (getVal('contactEmail')) parts.push(getVal('contactEmail'));
+    ctx.fillText(parts.join('　'), tableX, y);
+  }
+
+  // Canvas → JPEG → 手動PDF生成
+  const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+  const jpegBase64 = jpegDataUrl.split(',')[1];
+  const jpegBytes = atob(jpegBase64);
+  const jpegLen = jpegBytes.length;
+  const jpegArray = new Uint8Array(jpegLen);
+  for (let i = 0; i < jpegLen; i++) jpegArray[i] = jpegBytes.charCodeAt(i);
+
+  const pw = 595.28, ph = 841.89;
+  const offsets = [];
+  let pdf = '%PDF-1.4\n';
+
+  offsets.push(pdf.length);
+  pdf += '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n';
+  offsets.push(pdf.length);
+  pdf += `2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n`;
+  offsets.push(pdf.length);
+  pdf += `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Contents 4 0 R /Resources << /XObject << /Img0 5 0 R >> >> >>\nendobj\n`;
+
+  const stream = `q ${pw} 0 0 ${ph} 0 0 cm /Img0 Do Q\n`;
+  offsets.push(pdf.length);
+  pdf += `4 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}endstream\nendobj\n`;
+
+  const imgHeader = `5 0 obj\n<< /Type /XObject /Subtype /Image /Width ${pageW} /Height ${pageH} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegLen} >>\nstream\n`;
+  const imgFooter = `\nendstream\nendobj\n`;
+
+  const encoder = new TextEncoder();
+  const pdfHeaderBytes = encoder.encode(pdf);
+  const imgHeaderBytes = encoder.encode(imgHeader);
+  const imgFooterBytes = encoder.encode(imgFooter);
+  const imgObjOffset = pdfHeaderBytes.length;
+  const xrefOffset = imgObjOffset + imgHeaderBytes.length + jpegLen + imgFooterBytes.length;
+
+  let xref = 'xref\n0 6\n0000000000 65535 f \n';
+  for (let i = 0; i < 4; i++) {
+    xref += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
+  }
+  xref += String(imgObjOffset).padStart(10, '0') + ' 00000 n \n';
+
+  const trailer = `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  const xrefBytes = encoder.encode(xref + trailer);
+
+  const totalLen = pdfHeaderBytes.length + imgHeaderBytes.length + jpegLen + imgFooterBytes.length + xrefBytes.length;
+  const pdfOutput = new Uint8Array(totalLen);
+  let pos = 0;
+  pdfOutput.set(pdfHeaderBytes, pos); pos += pdfHeaderBytes.length;
+  pdfOutput.set(imgHeaderBytes, pos); pos += imgHeaderBytes.length;
+  pdfOutput.set(jpegArray, pos); pos += jpegLen;
+  pdfOutput.set(imgFooterBytes, pos); pos += imgFooterBytes.length;
+  pdfOutput.set(xrefBytes, pos);
+
+  const blob = new Blob([pdfOutput], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${eName}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// --- 初期化 ---
+renderPlayers();
+
+const savedEvent = JSON.parse(localStorage.getItem(LS_EVENT) || '{}');
+EVENT_FIELDS.forEach(id => {
+  if (savedEvent[id]) document.getElementById(id).value = savedEvent[id];
+});
+</script>
+</body>
+</html>
