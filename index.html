@@ -586,12 +586,43 @@ function generatePdf() {
   pdfOutput.set(xrefBytes, pos);
 
   const blob = new Blob([pdfOutput], { type: 'application/pdf' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${eName}.pdf`;
-  a.click();
-  URL.revokeObjectURL(url);
+
+  // iOS Safari はblob URLのダウンロードが効かないので
+  // FileReader で data URL に変換して新しいタブで開く
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  if (isIOS) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const win = window.open();
+      if (win) {
+        win.document.write(
+          `<html><head><title>${escHtml(eName)}</title></head>` +
+          `<body style="margin:0"><iframe src="${reader.result}" ` +
+          `style="border:none;width:100%;height:100%"></iframe></body></html>`
+        );
+        win.document.close();
+      } else {
+        // ポップアップブロック時はリンクを表示
+        const a = document.createElement('a');
+        a.href = reader.result;
+        a.target = '_blank';
+        a.textContent = 'PDFを開く';
+        a.style.cssText = 'display:block;text-align:center;padding:20px;font-size:1.2rem;';
+        const container = document.getElementById('pdfPreview');
+        container.prepend(a);
+      }
+    };
+    reader.readAsDataURL(blob);
+  } else {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${eName}.pdf`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
 }
 
 // --- 初期化 ---
